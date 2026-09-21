@@ -65,7 +65,7 @@ export default function Library() {
       </div>
       {f.slice(0, shown).map(e => {
         const best = bestWeightFor(S, e.id)
-        return <div key={e.id} className="item" {...tappable(() => exerciseDetailSheet(e))}>
+        return <div key={e.id} className="item exercise-card" {...tappable(() => exerciseDetailSheet(e))}>
           <Thumb ex={e} />
           <div className="grow"><div className="tt capitalize">{isFav(S, e.id) && <Icon name="starFill" className="fav-star" />}{exerciseNameFor(e)}</div><div className="ss capitalize">{t(MUSCLE_NAME[e.tg] || e.tg || e.bp)} · {t(e.eq)}</div></div>
           {best > 0 && <span className="tag acc">{fmtNum(best)}</span>}
@@ -77,4 +77,3 @@ export default function Library() {
     {f.length > shown && <><div style={{ height: 10 }} /><Button onClick={() => setShown(s => s + 40)}>{t('Show more')}</Button></>}
   </>
 }
-

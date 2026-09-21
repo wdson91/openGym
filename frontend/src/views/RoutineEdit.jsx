@@ -393,7 +393,7 @@ export default function RoutineEdit() {
         className={'routine-drag-row' + (isDragging ? ' is-dragging' : '')}
         style={isDragging ? { transform: `translate3d(0, ${reorder.drag.deltaY}px, 0)` } : undefined}>
         {unitFirst.has(i) && <div className="ss-label"><Icon name="link" />{t('Superset')}</div>}
-        <SwipeToDelete className={'item' + (inSS.has(i) ? ' in-ss' : '')}
+        <SwipeToDelete className={'item exercise-card' + (inSS.has(i) ? ' in-ss' : '')}
           deleteLabel={t('Remove from routine')}
           onDelete={() => edit(x => { x.splice(i, 1); cleanupSg(x) })}
           onClick={() => {

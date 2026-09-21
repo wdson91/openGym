@@ -352,6 +352,12 @@ export function build(S, opts = {}) {
       limitations: profile.limitations || '',
       likes: profile.likes || '',
       dislikes: profile.dislikes || '',
+      preferredEquipment: profile.preferredEquipment || 'dumbbell',
+      exercisesPerMuscle: profile.exercisesPerMuscle || 3,
+      cardioDaysPerWeek: profile.cardioDaysPerWeek ?? profile.daysPerWeek ?? 3,
+      // Total across the session's cardio blocks, not a minimum per block.
+      cardioMinutes: Math.max(10, Math.min(180, Number(profile.cardioMinutes) || 10)),
+      cardioPreference: profile.cardioPreference || '',
       notes: profile.notes || ''
     } : null,
     plan: cleanPlan(S)
@@ -402,9 +408,9 @@ export function build(S, opts = {}) {
     if (opts.note) p.userNote = String(opts.note).slice(0, 1000);
     if (opts.cohort) p.cohort = opts.cohort;
     // A review names mostly what is already trained; 60 candidates is plenty for a swap.
-    p.library = librarySlice(S, profile?.equipment, { keep: trainedIds(S, workouts), max: 60 });
+    p.library = librarySlice(S, profile?.equipment, { keep: trainedIds(S, workouts), max: 60, preferredEquipment: p.coachProfile?.preferredEquipment });
   } else {
-    p.library = librarySlice(S, profile?.equipment, { keep: trainedIds(S, S.workouts || []) });
+    p.library = librarySlice(S, profile?.equipment, { keep: trainedIds(S, S.workouts || []), preferredEquipment: p.coachProfile?.preferredEquipment });
     // Creation for a returning user: what they have actually handled, so proposed baselines
     // start from evidence rather than optimism (B2/FR-20).
     const best = {};

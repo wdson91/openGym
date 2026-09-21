@@ -1,24 +1,27 @@
 # REPAIR REQUEST
 
-Your previous answer was rejected by the app's validator. It was never shown to anyone, and this is the only retry — if this answer also fails, the job is reported to the user as failed.
+The previous answer was rejected by the app's validator and was never presented as a valid proposal. This is the only repair round.
 
-## What you sent
+## Previous answer
 
 ```
 {{PREVIOUS}}
 ```
 
-## What was wrong
+## Validation errors
 
 {{ERRORS}}
 
-## What to do
+## Repair instructions
 
-Send the **whole answer again**, corrected, in the schema from the original task. Not a patch, not an apology, not an explanation — one JSON object and nothing else.
+Return the WHOLE corrected JSON object in the original task's contract. No patch, apology, markdown fence or surrounding text.
 
-Common causes, in the order they usually apply:
+1. Address every listed error. Preserve valid portions and the original training request.
+2. Copy ids from the supplied library. Never invent exercises, equipment or history to complete an answer.
+3. For review changes, use only allowed types, correct value types and existing targets. Include why on every change. Do not target an item that another proposed change would create.
+4. For plans, fix actual days, direct muscle counts/focus, equipment and cardio entries; renaming a title or changing its summary does not repair the exercise list. Never invent a generic adjustment to bypass a target. A real exception must cite the specific supplied constraint.
+5. For loaded double progression, repsMin is the floor and reps is the ceiling; repsMax is not its substitute. Keep cardio prog: "off", proper minutes/pace and no invented starting loads.
+6. Recheck the entire answer after repairing: do not drop cardio, undo movement matching or simplicity preference, introduce exclusions or change unrelated days. If the previous answer was truncated, reconstruct missing structure from the original request and library, not guessed ids or performance.
+7. For a first/easy/level-1 plan, every chosen library entry must have difficulty: 1. Lowering weight or sets cannot repair an inappropriate exercise choice. Never fill missing volume with harder or unclassified entries; explain a real availability gap instead.
 
-- An exercise `id` that is not in the `library` array of the payload. Every id must be copied from there. If nothing in the library fits, choose the closest thing that does rather than inventing one.
-- A `type` outside the allowed list, or a `target` naming a routine or exercise that is not in the plan.
-- A value of the wrong kind — a string where a number belongs, an object where a plain value belongs.
-- A missing `why`. Every change needs one.
+Respect both the original task and its safety constraints. If a requested combination cannot be satisfied, use the task's supported explanation fields honestly rather than claiming compliance.

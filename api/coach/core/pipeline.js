@@ -60,11 +60,13 @@ export async function attemptOnce({ adapter, cfg, kind, payload, model, timeoutM
   // so they are a legitimate thing for it to name back — the validator has to agree.
   const customIds = (payload.library || []).filter(e => e && e.custom).map(e => e.id);
   const checked = kind === 'review'
-    ? validateReview(parsed.value, payload.plan, { customIds })
+    ? validateReview(parsed.value, payload.plan, { customIds, coachProfile: payload.coachProfile })
     : kind === 'debrief'
       ? validateDebrief(parsed.value)
       : validatePlan(parsed.value, {
       customIds,
+      coachProfile: payload.coachProfile,
+      library: payload.library,
       workingWeights: payload.history?.workingWeights,
       daysPerWeek: payload.coachProfile?.daysPerWeek
     });

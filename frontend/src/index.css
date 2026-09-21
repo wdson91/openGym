@@ -436,6 +436,9 @@ h4.sec{
   background:var(--acc);transform:translateY(-50%);pointer-events:none;z-index:3;
 }
 .thumb{width:50px;height:50px;border-radius:9px;object-fit:cover;background:#fff;flex:none}
+.exercise-card{min-height:136px;flex-wrap:wrap;gap:12px}
+.exercise-card .thumb{width:112px;height:112px;object-fit:contain;border-radius:12px}
+.exercise-card .grow{flex:1 1 100px;overflow-wrap:anywhere}
 /* exercise pictures are decoration inside tappable rows/cards: no save-image callout on
    a long press and no drag ghost when a scroll starts on the picture */
 .thumb,.exmedia img{-webkit-touch-callout:none;-webkit-user-drag:none;user-select:none;-webkit-user-select:none}
@@ -444,6 +447,7 @@ h4.sec{
   background:var(--surface-2);color:var(--label-2);
 }
 .item .tt{font-size:16px;font-weight:400;line-height:1.25;letter-spacing:-.009em}
+.item.exercise-card .tt{line-height:1.35}
 .item .ss{color:var(--label-2);font-size:13px;margin-top:2px}
 .item .grow{flex:1;min-width:0}
 .chev{color:var(--label);flex:none;font-size:15px;--icon-stroke:2.4}

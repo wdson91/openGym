@@ -6,6 +6,8 @@
  * needs an import attribute, and this file has to load under both without either knowing.
  */
 import { EXERCISES } from './library-data.js';
+import { FOUNDATION_IDS } from './foundations.js';
+import { rankingOf } from './exercise-ranking.js';
 
 export const LIBRARY = EXERCISES;
 export const LIB_BY_ID = new Map(LIBRARY.map(e => [e.id, e]));
@@ -22,18 +24,24 @@ export const libraryName = id => LIB_BY_ID.get(id)?.n || null;
    a review has to be able to name what it is talking about. */
 export const MAX_LIBRARY = 160;
 
-// What one library entry tells the model: enough to pick it, nothing more. The taxonomy
-// fields beyond body part never appear in a rationale and cost ~30 tokens an entry.
-const slim = e => ({ id: e.id, n: e.n, bp: e.bp, ...(e.custom ? { custom: true } : {}) });
+// Equipment and target distinguish a familiar triceps movement from a biceps
+// variation in the same body-part bucket. Keep this metadata in the bounded slice.
+const slim = e => ({ id: e.id, n: e.n, bp: e.bp, tg: e.tg, eq: e.eq,
+  ...rankingOf(e.id),
+  ...(FOUNDATION_IDS.has(e.id) ? { foundation: true } : {}), ...(e.custom ? { custom: true } : {}) });
 
-export function librarySlice(S, equipment, { keep = [], max = MAX_LIBRARY } = {}) {
+export function librarySlice(S, equipment, { keep = [], max = MAX_LIBRARY, preferredEquipment = 'dumbbell' } = {}) {
   const wanted = (equipment || []).map(x => String(x).toLowerCase());
   const customs = (S.customEx || []).map(c => ({ id: c.id, n: c.n, bp: c.bp, tg: null, eq: 'custom', custom: true }));
   // No equipment stated (or "everything") ⇒ the whole catalogue. Filtering to nothing would
   // leave the Coach unable to propose anything at all, which is a worse failure than a
   // slightly larger payload.
   const filtered = wanted.length ? LIBRARY.filter(e => wanted.includes((e.eq || '').toLowerCase())) : LIBRARY;
-  const base = filtered.length ? filtered : LIBRARY;
+  // Rank inside the available catalogue; preference must never widen availability.
+  // Execution simplicity precedes equipment preference. Unknown is not easy.
+  const priority = e => (FOUNDATION_IDS.has(e.id) ? 2 : 0) + (e.eq === preferredEquipment ? 1 : 0);
+  const base = [...(filtered.length ? filtered : LIBRARY)].sort((a, b) =>
+    (rankingOf(a.id).difficulty ?? 4) - (rankingOf(b.id).difficulty ?? 4) || priority(b) - priority(a));
 
   const pinned = new Set(keep.filter(id => LIB_BY_ID.has(id)));
   const out = [];
@@ -48,6 +56,8 @@ export function librarySlice(S, equipment, { keep = [], max = MAX_LIBRARY } = {}
     // "lower arms"; order within a body part is the catalogue's own.
     const groups = new Map();
     for (const e of base) { if (!groups.has(e.bp)) groups.set(e.bp, []); groups.get(e.bp).push(e); }
+    // Familiar options first within each lane; preserve deterministic catalogue
+    // order for ties and the round-robin balance across body parts.
     const lanes = [...groups.keys()].sort().map(k => groups.get(k));
     const cursor = lanes.map(() => 0);
     let progressed = true;

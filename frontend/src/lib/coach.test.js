@@ -7,6 +7,7 @@ import {
   CHANGE_TYPES, SNAPSHOT_MAX, LOG_MAX, CONSENT_VERSION
 } from './coach.js'
 import { registerCustom } from './exercises.js'
+import { validateReview } from '../../../api/coach/core/validate.js'
 
 // The two runtimes share no build step, so the client's copy of the fingerprint logic is
 // checked against the server's actual source rather than against a transcribed expectation.
@@ -32,6 +33,20 @@ const change = over => ({ id: 'c1', type: 'sets', target: { routineId: 'r1', exI
 const proposal = (changes, over = {}) => ({ id: 'p1', kind: 'review', summary: 's', changes, ...over })
 /** Apply against a throwaway draft, the way the store does. */
 const apply = (S, p, ids) => { const s = JSON.parse(JSON.stringify(S)); applyChangeSet(s, p, ids); return s }
+
+it('keeps prescribed split cardio minutes, speed and order through validation and application', () => {
+  const s = state();
+  s.routines[0].ex.push({ id: '2138', sets: 1, mode: 'cardio', min: 10, speed: 8, prog: 'off' });
+  const checked = validateReview({ changes: [{
+    id: 'cardio-start', type: 'add-exercise', target: { routineId: 'r1' },
+    after: { id: '3666', sets: 1, mode: 'cardio', min: 5, speed: 4, prog: 'off', position: 0 },
+    why: 'Requested 5 before strength and 10 after.'
+  }] }, s, { coachProfile: { cardioMinutes: 10, cardioDaysPerWeek: 3 } });
+  expect(checked.ok).toBe(true);
+  const after = apply(s, proposal(checked.proposal.changes), ['cardio-start']);
+  expect(after.routines[0].ex[0]).toMatchObject({ id: '3666', min: 5, speed: 4, sets: 1, prog: 'off' });
+  expect(after.routines[0].ex.at(-1)).toMatchObject({ id: '2138', min: 10 });
+});
 
 describe('gating', () => {
   it('shows nothing unless the instance offers it and someone is signed in', () => {

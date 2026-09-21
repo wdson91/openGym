@@ -103,7 +103,7 @@ test('Anthropic: the pasted key travels as x-api-key, the rules are the cached s
   assert.equal(job.headers['anthropic-version'], '2023-06-01');
   assert.equal(job.body.model, 'model-a');
   assert.ok(Array.isArray(job.body.system) && job.body.system[0].cache_control?.type === 'ephemeral', 'rules block is marked cacheable');
-  assert.match(job.body.system[0].text, /Output is JSON and nothing else/);
+  assert.match(job.body.system[0].text, /Output one JSON object only/);
   assert.match(job.body.messages[0].content, /"coach_contract":1/);
   assert.ok(!JSON.stringify(job.body).includes('sk-ant-test'), 'the key is never in the body');
   assert.ok(!seen.some(s => s.url.includes('sk-ant')), 'the key is never in a URL');

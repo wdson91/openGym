@@ -71,6 +71,7 @@ export const CREATE_SCHEMA = {
     name: STR,
     summary: STR,
     basedOn: STR,
+    adjustment: STR,
     week: { type: 'object' },
     // The caps are the validator's own (MAX_ROUTINES, MAX_EX_PER_ROUTINE), stated here as well
     // because "1-7 routines, each 3-12 exercises" in create.md is only a request. A small model
@@ -85,6 +86,7 @@ export const CREATE_SCHEMA = {
         type: 'object',
         properties: {
           id: STR, name: STR, emoji: STR, prog: STR, why: STR,
+          focus: STRINGS,
           ex: { type: 'array', maxItems: 20, items: EX_SCHEMA }
         },
         required: ['id', 'name', 'ex']

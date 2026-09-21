@@ -167,11 +167,17 @@ describe('the Coach on a phone with its own key', () => {
   })
 
   it('creates a plan from an intake, and refines it against the previous bundle', async () => {
-    const plan = { coach_contract: 1, opengym_plan: 1, name: 'P', summary: 's', basedOn: 'b', week: { 1: 'r1', 3: 'r2', 5: 'r1' },
+    const strength = (id, reps = 10) => ({ id, sets: 3, mode: 'reps', reps, why: 'w' })
+    const cardio = { id: '2138', sets: 1, mode: 'cardio', min: 10, speed: 8, prog: 'off', why: 'cardio' }
+    const plan = {
+      coach_contract: 1, opengym_plan: 1, name: 'P', summary: 's', basedOn: 'b', week: { 1: 'r1', 3: 'r2', 5: 'r1' },
       routines: [
-        { id: 'r1', name: 'A', emoji: '💪', why: 'w', ex: [{ id: EX, sets: 3, mode: 'reps', reps: 8, why: 'w' }, { id: EX2, sets: 3, mode: 'reps', reps: 10, why: 'w' }, { id: EXERCISES[2].id, sets: 3, mode: 'reps', reps: 10, why: 'w' }] },
-        { id: 'r2', name: 'B', emoji: '🏋️', why: 'w', ex: [{ id: EXERCISES[3].id, sets: 3, mode: 'reps', reps: 8, why: 'w' }, { id: EXERCISES[4].id, sets: 3, mode: 'reps', reps: 10, why: 'w' }, { id: EXERCISES[5].id, sets: 3, mode: 'reps', reps: 10, why: 'w' }] }
-      ], customEx: [] }
+        { id: 'r1', name: 'A', emoji: '💪', why: 'w', focus: ['pectorals', 'triceps'],
+          ex: ['0577', '0289', '0314', '0201', '2188', '0351'].map(id => strength(id, 8)).concat(cardio) },
+        { id: 'r2', name: 'B', emoji: '🏋️', why: 'w', focus: ['pectorals', 'triceps'],
+          ex: ['0577', '0289', '0314', '0201', '2188', '0351'].map(id => strength(id, 10)).concat(cardio) }
+      ], customEx: []
+    }
     wire.answer = chat(JSON.stringify(plan))
     const S = { ...state(), routines: [], week: {} }
     await local.localPlan(S, { goal: 'muscle', daysPerWeek: 3 })

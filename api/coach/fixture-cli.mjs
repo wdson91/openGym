@@ -70,13 +70,17 @@ if (MODE === 'nochange' || (kind === 'review' && !(P.window?.workouts || []).len
 }
 
 if (kind === 'create') {
-  const lib = (P.library || []).slice(0, 6);
+  const lib = (P.library || []).filter(e => e.bp !== 'cardio' && e.tg).slice(0, 6);
   const ex = (i) => lib[i % Math.max(1, lib.length)] || { id: 'unknown' };
+  const aerobic = (P.library || []).find(e => e.bp === 'cardio');
+  const cardioEx = aerobic && P.coachProfile?.cardioDaysPerWeek > 0
+    ? [{ id: aerobic.id, sets: 1, mode: 'cardio', min: P.coachProfile.cardioMinutes || 10, speed: 8, prog: 'off' }] : [];
   out({
     coach_contract: 1,
     opengym_plan: 1,
     name: 'Coach plan',
     summary: 'A three-day full-body plan built around the equipment you listed.',
+    adjustment: 'This fixture demonstrates a compact full-body plan; it is not a personalized prescription. Cardio is included only when available in the supplied catalogue.',
     // Echoes whether the previous bundle actually arrived, so a test can tell a refine that
     // carried its predecessor from one that silently sent `previous: null`.
     basedOn: P.refine?.previous
@@ -86,19 +90,21 @@ if (kind === 'create') {
     routines: [
       {
         id: 'r1', name: 'Full body A', emoji: '💪', prog: 'linear', why: 'Compound-first, three sessions a week.',
+        focus: [...new Set([ex(0).tg, ex(1).tg, ex(2).tg])],
         ex: [
           { id: ex(0).id, sets: 3, reps: 8, mode: 'reps', prog: 'linear', why: 'Main lower-body driver.' },
           { id: ex(1).id, sets: 3, reps: 10, mode: 'reps', why: 'Upper-body push volume.' },
           { id: ex(2).id, sets: 3, reps: 12, mode: 'reps', why: 'Pull, to balance the pressing.' }
-        ]
+        ].concat(cardioEx)
       },
       {
         id: 'r2', name: 'Full body B', emoji: '🏋️', prog: 'linear', why: 'The same pattern, different variations.',
+        focus: [...new Set([ex(3).tg, ex(4).tg, ex(5).tg])],
         ex: [
           { id: ex(3).id, sets: 3, reps: 8, mode: 'reps', why: 'Hinge pattern.' },
           { id: ex(4).id, sets: 3, reps: 10, mode: 'reps', why: 'Vertical press.' },
           { id: ex(5).id, sets: 3, reps: 12, mode: 'reps', why: 'Accessory work.' }
-        ]
+        ].concat(cardioEx)
       }
     ],
     customEx: []

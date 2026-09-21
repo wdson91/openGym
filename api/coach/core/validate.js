@@ -14,7 +14,7 @@
  * model verbatim for the one repair round (FR-48) — and a list of six problems produces a
  * better second attempt than the first of them does.
  */
-import { libraryHas, libraryName } from './library.js';
+import { libraryHas, libraryName, LIB_BY_ID } from './library.js';
 
 // The closed list (FR-23 / C3). Adding a member here is a deliberate act with an apply
 // implementation on the client to match; there is no default case anywhere.
@@ -41,6 +41,8 @@ const safeId = v => isStr(v) && !RESERVED_IDS.includes(v);
 const MAX_CHANGES = 25;
 const MAX_ROUTINES = 7;
 const MAX_EX_PER_ROUTINE = 20;
+const cardioMinutesOf = entries => entries.reduce((sum, e) => LIB_BY_ID.get(e.id)?.bp === 'cardio'
+  ? sum + (e.min || 0) * (e.sets || 1) : sum, 0);
 
 const isStr = v => typeof v === 'string' && v.trim().length > 0;
 const isNum = v => typeof v === 'number' && Number.isFinite(v);
@@ -191,13 +193,72 @@ export function validatePlan(data, ctx = {}) {
     errors.push(`the week schedules ${Object.keys(week).length} days but ${want} were asked for`);
   }
 
+  // Explicit profile targets must either be met or have a visible, specific
+  // explanation. Legacy imports without a coaching profile retain their shape.
+  const profile = ctx.coachProfile;
+  const adjustment = isStr(data.adjustment) ? clampStr(data.adjustment, 600) : '';
+  if (profile) {
+    const target = profile.exercisesPerMuscle;
+    const allowed = new Map((ctx.library || []).map(e => [e.id, e]));
+    // A generic volume/time adjustment cannot waive requested cardio when the
+    // catalogue offers it. Keep a documented exception for stated limitations
+    // or unavailable cardio equipment; an explicit opt-out is already zero.
+    const cardioException = adjustment && (isStr(profile.limitations) ||
+      (Array.isArray(ctx.library) && !ctx.library.some(e => e.bp === 'cardio')));
+    const scheduled = new Set(Object.values(week));
+    let cardioDays = 0;
+    for (const rid of Object.values(week)) {
+      if (routines.find(r => r.id === rid)?.ex.some(e => LIB_BY_ID.get(e.id)?.bp === 'cardio' && e.min > 0)) cardioDays++;
+    }
+    if (isInt(profile.cardioDaysPerWeek, 1, 7) && cardioDays < profile.cardioDaysPerWeek && !cardioException) {
+      errors.push(`requested ${profile.cardioDaysPerWeek} cardio days but received ${cardioDays}; add real cardio entries, reserving time before strength work. A generic volume/time adjustment does not waive cardio`);
+    }
+    const setsException = !!(
+      adjustment ||
+      (isStr(profile.limitations) && profile.limitations.trim().length > 0) ||
+      (isStr(profile.notes) && /\b\d+\s*(?:sets?|s[ée]ries?)\b/i.test(profile.notes)) ||
+      (isStr(profile.likes) && /\b\d+\s*(?:sets?|s[ée]ries?)\b/i.test(profile.likes))
+    );
+    for (const [ri, r] of routines.entries()) {
+      for (const e of r.ex) {
+        if (ctx.library && !allowed.has(e.id) && !proposedIds.has(e.id)) errors.push(`${r.name}: ${e.id} was not in the supplied equipment-filtered library`);
+        if (LIB_BY_ID.get(e.id)?.bp === 'cardio' && e.min == null) errors.push(`${r.name}: cardio must use mode cardio with minutes`);
+        if (e.min != null && LIB_BY_ID.get(e.id)?.bp !== 'cardio') errors.push(`${r.name}: a strength exercise cannot count as cardio`);
+        const isCardio = LIB_BY_ID.get(e.id)?.bp === 'cardio' || e.min != null || e.mode === 'cardio';
+        if (!isCardio && e.sets !== 3 && !setsException) {
+          errors.push(`${r.name}: strength exercise ${e.id} has ${e.sets} sets; default is 3 work sets (sets: 3) unless a limitation or explicit request is documented in adjustment`);
+        }
+      }
+      if (!scheduled.has(r.id)) continue;
+      const source = data.routines[ri];
+      const cardioTotal = cardioMinutesOf(r.ex);
+      const cardioTarget = Math.max(10, isInt(profile.cardioMinutes, 1, 180) ? profile.cardioMinutes : 10);
+      if (cardioTotal > 0 && cardioTotal < cardioTarget && !cardioException) {
+        errors.push(`${r.name}: requested at least ${cardioTarget} total cardio minutes per session but received ${cardioTotal}; sum the blocks before and after strength work`);
+      }
+      if (!isInt(target, 2, 4)) continue;
+      const focus = [...new Set(Array.isArray(source?.focus) ? source.focus : [])];
+      if (!focus.length) { errors.push(`${r.name}: declare focus using target muscles from library.tg`); continue; }
+      const counts = new Map();
+      r.ex.forEach(e => {
+        const muscle = LIB_BY_ID.get(e.id)?.tg;
+        if (muscle && LIB_BY_ID.get(e.id)?.bp !== 'cardio') counts.set(muscle, (counts.get(muscle) || 0) + 1);
+      });
+      for (const muscle of focus) {
+        if (!counts.has(muscle)) errors.push(`${r.name}: focus muscle ${muscle} has no direct exercises`);
+        else if (focus.length <= 2 && counts.get(muscle) < target && !adjustment) errors.push(`${r.name}: ${muscle} needs ${target} distinct direct exercises, or a specific adjustment explanation`);
+      }
+      if (focus.length === 1 && !adjustment) errors.push(`${r.name}: use paired muscle groups or explain the single-muscle split in adjustment`);
+    }
+  }
+
   if (errors.length) return fail(errors);
   return {
     ok: true,
     bundle: {
       opengym_plan: 1,
       name: clampStr(data.name || 'Coach plan', 40),
-      summary: clampStr(data.summary || '', 1200),
+      summary: [clampStr(data.summary || '', 1200), adjustment].filter(Boolean).join('\n\n'),
       basedOn: clampStr(data.basedOn || '', 400),
       week, routines, customEx
     }
@@ -289,6 +350,11 @@ export function validateReview(data, plan, ctx = {}) {
         }
         const a = c.after || {};
         if (!isStr(a.id) || !knownEx(a.id)) { errors.push(`${where}.after.id must be an exercise id from the library`); return; }
+        if (a.mode === 'cardio') {
+          if (LIB_BY_ID.get(a.id)?.bp !== 'cardio' || !isInt(a.min, 1, 180) || !isNum(a.speed) || a.speed <= 0 || a.speed > MAX_SPEED) {
+            errors.push(`${where}.after cardio requires a catalogue cardio exercise, minutes 1–180 and a positive speed at most ${MAX_SPEED}`); return;
+          }
+        }
         const perSide = !!a.side;
         if (perSide && isInt(a.reps, 1, 100) && a.reps % 2) { errors.push(ODD_PER_SIDE(`${where}.after.reps`)); return; }
         if (isInt(a.repsMax, 1, 100) && isInt(a.repsMin, 1, 100) && a.repsMax < a.repsMin) { errors.push(INVERTED_RANGE(`${where}.after`)); return; }
@@ -298,6 +364,7 @@ export function validateReview(data, plan, ctx = {}) {
           ...(MODES.includes(a.mode) ? { mode: a.mode } : { mode: 'reps' }),
           ...(isInt(a.reps, 1, 100) ? { reps: a.reps } : {}),
           ...(isInt(a.sec, 5, 3600) ? { sec: a.sec } : {}),
+          ...(a.mode === 'cardio' ? { min: a.min, speed: a.speed } : {}),
           ...(isNum(a.weight) && a.weight > 0 && a.weight <= MAX_WEIGHT ? { weight: a.weight } : {}),
           ...(POLICIES.includes(a.prog) ? { prog: a.prog } : {}),
           ...(isInt(a.repsMin, 1, 100) ? { repsMin: a.repsMin } : {}),
@@ -347,6 +414,8 @@ export function validateReview(data, plan, ctx = {}) {
       case 'sec': if (!isInt(c.after, 5, 3600) ) { errors.push(`${where}.after must be seconds (5-3600)`); return; } break;
       case 'cardio': {
         const a = c.after || {};
+        if (a.min != null && !isInt(a.min, 1, 180)) { errors.push(`${where}.after.min must be minutes 1–180`); return; }
+        if (a.speed != null && (!isNum(a.speed) || a.speed <= 0 || a.speed > MAX_SPEED)) { errors.push(`${where}.after.speed must be positive and at most ${MAX_SPEED}`); return; }
         if (!isInt(a.min, 1, 180) && !isNum(a.speed)) { errors.push(`${where}.after must carry min and/or speed`); return; }
         out.after = { ...(isInt(a.min, 1, 180) ? { min: a.min } : {}), ...(isNum(a.speed) && a.speed > 0 && a.speed <= MAX_SPEED ? { speed: a.speed } : {}) };
         break;
@@ -483,6 +552,29 @@ export function validateReview(data, plan, ctx = {}) {
   });
   if (routines.size + addedRoutines - removedRoutines.size > MAX_ROUTINES) {
     errors.push(`the plan would end up with more than the ${MAX_ROUTINES} routines allowed`);
+  }
+
+  // A review may redistribute or extend blocks, but must check their combined
+  // duration instead of demanding the full session target from each block.
+  if (ctx.coachProfile && !isStr(ctx.coachProfile.limitations)) {
+    const minimum = Math.max(10, Number(ctx.coachProfile.cardioMinutes) || 10);
+    for (const [rid, r] of routines) {
+      const edits = kept.filter(c => c.target.routineId === rid);
+      if (!edits.some(c => ['cardio', 'add-exercise', 'remove-exercise', 'swap-exercise', 'sets'].includes(c.type))) continue;
+      let entries = (r.ex || []).map(e => ({ ...e }));
+      for (const c of edits) {
+        if (c.type === 'add-exercise') entries.push(c.after);
+        if (c.type === 'remove-exercise') entries = entries.filter(e => e.id !== c.target.exId);
+        if (c.type === 'swap-exercise') entries = entries.map(e => e.id === c.target.exId ? { ...e, ...c.after } : e);
+        if (c.type === 'cardio') entries = entries.map(e => e.id === c.target.exId ? { ...e, ...c.after } : e);
+        if (c.type === 'sets') entries = entries.map(e => e.id === c.target.exId ? { ...e, sets: c.after } : e);
+      }
+      const total = cardioMinutesOf(entries);
+      const hadCardio = cardioMinutesOf(r.ex || []) > 0;
+      if ((total > 0 || (hadCardio && ctx.coachProfile.cardioDaysPerWeek > 0)) && total < minimum) {
+        errors.push(`${r.name}: proposed blocks total ${total} cardio minutes; preserve at least ${minimum} minutes per session`);
+      }
+    }
   }
 
   if (errors.length) return fail(errors);

@@ -73,19 +73,11 @@ export function t(s, ...args) {
 // Instructions for an exercise in the current language (English steps as fallback).
 export const instrFor = ex => (instr && instr[ex.id]) || ex.st || []
 
-// Built-in catalogue names are bilingual when a complete translated name pack is active.
+// Built-in catalogue names use the translated name pack when active.
 // User-created exercises have no entry in the pack and keep their exact chosen name.
 export const exerciseNameFor = ex => {
   const translated = exerciseNames && ex && exerciseNames[ex.id]
-  if (!translated) return ex?.n || ''
-  // Some names (Burpee, Pilates, brand/model terms) are the established term in the target
-  // language too. Repeating an identical loanword in parentheses adds noise rather than
-  // context. Compared in the active language's own casing rules, not hardcoded to one —
-  // this only ever differs from ordinary casing for languages with locale-specific rules
-  // (e.g. Turkish dotless i), which does not include any language shipped here today.
-  return translated.toLocaleLowerCase(lang) === ex.n.toLocaleLowerCase('en')
-    ? translated
-    : `${translated} (${ex.n})`
+  return translated || ex?.n || ''
 }
 
 // Search both the localized and canonical English title without changing persisted data.

@@ -65,6 +65,8 @@ export default function CoachIntake() {
   const [p, setP] = useState(() => ({
     goal: null, experience: null, daysPerWeek: 3, preferredDays: [1, 3, 5],
     sessionMin: 60, equipment: [], limitations: '', likes: '', dislikes: '', notes: '',
+    preferredEquipment: 'dumbbell', exercisesPerMuscle: 3,
+    cardioDaysPerWeek: null, cardioMinutes: 10, cardioPreference: '',
     ...(S.coach?.profile || {})
   }))
   const set = patch => setP(v => ({ ...v, ...patch }))
@@ -85,7 +87,9 @@ export default function CoachIntake() {
   }
 
   const finish = async () => {
-    const profile = { ...p, daysPerWeek: Math.min(7, Math.max(1, p.daysPerWeek || 3)) }
+    const profile = { ...p, daysPerWeek: Math.min(7, Math.max(1, p.daysPerWeek || 3)),
+      cardioMinutes: Math.max(10, Number(p.cardioMinutes) || 10),
+      cardioDaysPerWeek: p.cardioDaysPerWeek == null ? null : Math.min(p.cardioDaysPerWeek, p.daysPerWeek) }
     update(s => {
       const c = (s.coach = s.coach || emptyCoach())
       c.profile = profile
@@ -201,6 +205,32 @@ export default function CoachIntake() {
         <div className="ob-eyebrow">{t('Almost there')}</div>
         <h1 className="ob-h">{t('Anything else?')}</h1>
         <p className="ob-p">{t('All optional. The more the Coach knows, the less it guesses.')}</p>
+        <p className="ob-p">{t('Start with familiar exercises. Progress gradually as your training history grows.')}</p>
+        <label className="ob-sub">{t('Preferred equipment')}
+          <select className="input" value={p.preferredEquipment} onChange={e => set({ preferredEquipment: e.target.value })}>
+            <option value="dumbbell">{t('Dumbbells, with basic machines and cables')}</option>
+            <option value="balanced">{t('Balanced equipment mix')}</option>
+          </select>
+        </label>
+        <label className="ob-sub">{t('Exercises per main muscle in split workouts')}
+          <select className="input" value={p.exercisesPerMuscle} onChange={e => set({ exercisesPerMuscle: +e.target.value })}>
+            {[2, 3, 4].map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </label>
+        <label className="ob-sub">{t('Cardio days per week')}
+          <select className="input" value={p.cardioDaysPerWeek == null ? 'all' : Math.min(p.cardioDaysPerWeek, p.daysPerWeek)} onChange={e => set({ cardioDaysPerWeek: e.target.value === 'all' ? null : +e.target.value })}>
+            <option value="all">{t('Every training day')}</option>
+            {Array.from({ length: p.daysPerWeek + 1 }, (_, n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </label>
+        <label className="ob-sub">{t('Minimum total cardio minutes per session')}
+          <select className="input" value={Math.max(10, p.cardioMinutes || 10)} onChange={e => set({ cardioMinutes: +e.target.value })}>
+            {[10, 15, 20, 30].map(n => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </label>
+        <label className="ob-sub">{t('Preferred cardio activity')}
+          <input className="input" maxLength={150} value={p.cardioPreference} onChange={e => set({ cardioPreference: e.target.value })} placeholder={t('e.g. walking or stationary bike')} />
+        </label>
         <div className="ob-sub" style={{ marginTop: 0 }}>{t('Exercises you love')}</div>
         <div className="ob-field"><TextArea rows={2} maxLength={300} value={p.likes} onChange={e => set({ likes: e.target.value })} placeholder={t('e.g. “deadlifts, anything with a kettlebell”')} /></div>
         <div className="ob-sub" style={{ marginTop: 4 }}>{t('Exercises you would rather not')}</div>

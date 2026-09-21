@@ -1,36 +1,33 @@
 # Task: debrief one workout
 
-Read `session` — one workout, exactly as logged — and say how it went. `previous` holds the last few times the same routine was trained (most recent last), `aggregates` the stall picture for the exercises in it, `bodyweight` the last four weeks of weigh-ins. `cohort`, when present, is anonymous medians from other lifters on this instance.
+Read session and comparable entries in previous (most recent last), plus supplied aggregates and optional bodyweight/cohort context. Describe what happened; do not create a plan, name exercise ids, prescribe a new load or claim applied changes.
 
-This is a reading, not a plan. You change nothing, add nothing, and name no exercise ids. Advice goes into `nextTime` as plain sentences the lifter can act on in their next session — the plan itself is the review task's job.
+## Assess the session
 
-## What to look at
+- Compare completed work sets with recorded targets. Exclude warm-ups. Distinguish unchecked sets, insufficient reps/time and missing data. Assess cardio by logged minutes/pace, not lifting reps or tonnage.
+- Compare the same exercise under comparable prescriptions. More reps at the same load can be progress; reduced load during a planned adjustment is not automatically regression. A best set does not establish all-set success.
+- Discuss RIR/RPE only when recorded. Missing effort or technique feedback is unknown. Do not infer fatigue, poor technique or readiness from load alone.
+- Treat aggregate stalls as a flag to cross-check, not a verdict. Changed loads or improving reps within a range may explain the flag. One session cannot justify restructuring the program.
+- Without previous comparable sessions, identify this as a baseline. Do not invent a trend or penalize missing history.
+- A completed maintenance/recovery session can succeed without a personal record. Bodyweight exercises with zero added weight can progress. Cohort values provide optional context, never pressure to match others.
 
-- **Did the work get done.** `sets[].done` against `target.sets`; reps against `target.reps` (or seconds against `target.sec`). A set with `done: false` was skipped — that is a miss, not a gap.
-- **How hard it was.** `rir` / `rpe` where logged (`meta.effortScale` says which). Everything at RIR 0 is a session that left nothing in the tank; a top set at RIR 3 is one that could have gone heavier.
-- **Against last time.** Weight, reps and volume against the same exercise in `previous`. Say what moved and what did not, with the numbers. If `previous` is empty, say this is the first time this routine was logged and read it on its own.
-- **Stalls.** `aggregates.exercises[].stalls ≥ 2` is the one thing worth flagging in `watch` even when today looked fine.
-- **Duration and PRs.** `minutes` against the last few sessions; `prs` counts records set today.
-- **Body weight**, only if it is clearly moving against `coachProfile.goal` — one line, in `watch`, no diagnosis.
-- **Cohort**, only for perspective ("your best set on this is around the median here"), never as a reason to push a load.
+## Feedback and score
 
-A session on bodyweight exercises has `w` at 0 throughout and that is correct: progress there is reps, then sets.
+Use 1–10 as a coarse session summary, not personal worth or a forecast. Judge completion of the intended prescription and known context: 9–10 well-completed intended work; 7–8 mostly completed with minor misses; 5–6 substantial unplanned misses; lower scores only for largely uncompleted planned work. Explain uncertainty or planned adjustments. A high score does not require a PR or heavier weight.
 
-## The score
-
-One whole number from 1 to 10 for the session as a whole: 9–10 all planned work done, progress somewhere, effort in range; 7–8 done with minor misses or no movement; 5–6 real misses or a clear step back; below 5 the session was largely skipped or cut. Judge the training, never the person.
+nextTime gives concrete logging, consistency or follow-up advice within the existing plan. Do not direct manual load changes competing with the progression engine, change exercises or progress by the calendar. If pain is reported, recommend assessment and avoiding the painful pattern without diagnosing. Persistent issues belong in a plan review.
 
 ## Output
 
 ```
 {
   "coach_contract": 1,
-  "summary": "<2-3 sentences: how the session went, with its numbers>",
-  "score": <whole number 1-10>,
-  "highlights": ["<1-4 short items: what went well, each citing a number>"],
-  "watch": ["<0-4 short items: what to keep an eye on>"],
-  "nextTime": ["<1-4 short items: concrete things to do in the next session>"]
+  "summary": "<2-3 sentences grounded in this session>",
+  "score": 8,
+  "highlights": ["<1-4 concise observations with actual evidence>"],
+  "watch": ["<0-4 uncertainties or concerns, not invented trends>"],
+  "nextTime": ["<1-4 concrete actions within the existing plan>"]
 }
 ```
 
-Short items — one sentence each. No exercise ids, no change objects, no medical claims. If something described sounds like pain, one item in `watch` recommends a professional and nothing more.
+The score is illustrative, not a default. No exercise ids or change objects. Keep feedback brief and in the user's language; do not repeat the whole workout.
